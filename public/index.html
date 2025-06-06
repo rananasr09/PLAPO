@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Creator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .captcha-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .captcha-image {
+            max-width: 300px;
+            margin-bottom: 10px;
+        }
+        .progress {
+            margin: 20px 0;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+        .success {
+            color: green;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8 text-center">Account Creator</h1>
+        
+        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="accountCount">
+                    Number of Accounts to Create
+                </label>
+                <input type="number" id="accountCount" 
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                       min="1" max="100" value="1">
+            </div>
+            
+            <button id="startButton" 
+                    class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                Start Creation
+            </button>
+        </div>
+
+        <div class="mt-8">
+            <h2 class="text-xl font-bold mb-4">Progress</h2>
+            <div id="progress" class="bg-white rounded-lg shadow-md p-6">
+                <div class="mb-4">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700">Progress</span>
+                        <span id="progressText" class="text-sm font-medium text-gray-700">0/0</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div id="status" class="text-sm text-gray-600"></div>
+            </div>
+        </div>
+
+        <div class="mt-8">
+            <h2 class="text-xl font-bold mb-4">Created Accounts</h2>
+            <div id="accountsList" class="bg-white rounded-lg shadow-md p-6">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Username</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Password</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email Password</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Step</th>
+                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accountsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="captchaContainer" class="captcha-container" style="display: none;">
+            <h3>Solve Captcha</h3>
+            <p>Account <span id="currentAccount">0</span> of <span id="totalAccounts">0</span></p>
+            <img id="captchaImage" class="captcha-image">
+            <div>
+                <input type="text" id="captchaInput" placeholder="Enter captcha solution">
+                <button onclick="submitCaptcha()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const startButton = document.getElementById('startButton');
+        const accountCount = document.getElementById('accountCount');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const status = document.getElementById('status');
+        const accountsTableBody = document.getElementById('accountsTableBody');
+        let currentCaptcha = null;
+
+        startButton.addEventListener('click', () => {
+            const count = parseInt(accountCount.value);
+            if (count > 0 && count <= 100) {
+                startButton.disabled = true;
+                startButton.textContent = 'Creating...';
+                socket.emit('startCreation', { count });
+            }
+        });
+
+        function submitCaptcha() {
+            const solution = document.getElementById('captchaInput').value;
+            if (solution) {
+                socket.emit('captchaSolved', solution);
+                document.getElementById('captchaContainer').style.display = 'none';
+                document.getElementById('captchaInput').value = '';
+            }
+        }
+
+        socket.on('showCaptcha', (data) => {
+            document.getElementById('captchaContainer').style.display = 'block';
+            document.getElementById('captchaImage').src = data.captchaUrl;
+            document.getElementById('currentAccount').textContent = data.current;
+            document.getElementById('totalAccounts').textContent = data.total;
+        });
+
+        socket.on('creationProgress', (data) => {
+            const progress = (data.current / data.total) * 100;
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${data.current}/${data.total}`;
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap">${data.account.username || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${data.account.password || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${data.account.email || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${data.account.emailPassword || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        data.status === 'success' ? 'bg-green-100 text-green-800' : 
+                        data.status === 'failed' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                    }">
+                        ${data.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">${data.currentStep || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${new Date().toLocaleTimeString()}</td>
+            `;
+            accountsTableBody.insertBefore(row, accountsTableBody.firstChild);
+        });
+
+        socket.on('creationError', (data) => {
+            status.textContent = `Error creating account ${data.current}: ${data.error}`;
+            status.className = 'text-sm text-red-600';
+        });
+
+        socket.on('creationComplete', () => {
+            startButton.disabled = false;
+            startButton.textContent = 'Start Creation';
+            status.textContent = 'Creation completed';
+            status.className = 'text-sm text-green-600';
+        });
+    </script>
+</body>
+</html> 
