@@ -14,14 +14,31 @@
             padding: 20px;
         }
         .captcha-container {
-            margin: 20px 0;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-width: 90%;
+            width: 400px;
+        }
+        .captcha-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
         }
         .captcha-image {
-            max-width: 300px;
-            margin-bottom: 10px;
+            max-width: 100%;
+            margin-bottom: 1rem;
+            border-radius: 4px;
         }
         .progress {
             margin: 20px 0;
@@ -33,6 +50,45 @@
         .success {
             color: green;
             margin: 10px 0;
+        }
+        .copy-btn {
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            background: #f3f4f6;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            background: #e5e7eb;
+        }
+        .accordion-header {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .accordion-header:hover {
+            background-color: #f9fafb;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-content.active {
+            max-height: 500px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem;
+            background: #10B981;
+            color: white;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show {
+            opacity: 1;
         }
     </style>
 </head>
@@ -75,36 +131,30 @@
         <div class="mt-8">
             <h2 class="text-xl font-bold mb-4">Created Accounts</h2>
             <div id="accountsList" class="bg-white rounded-lg shadow-md p-6">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full">
-                        <thead>
-                            <tr>
-                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Username</th>
-                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Password</th>
-                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
-                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email Password</th>
-                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Step</th>
-                                <th class="px-6 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Time</th>
-                            </tr>
-                        </thead>
-                        <tbody id="accountsTableBody">
-                        </tbody>
-                    </table>
+                <div class="space-y-4" id="accountsAccordion">
+                    <!-- Accordion items will be inserted here -->
                 </div>
             </div>
         </div>
+    </div>
 
-        <div id="captchaContainer" class="captcha-container" style="display: none;">
-            <h3>Solve Captcha</h3>
-            <p>Account <span id="currentAccount">0</span> of <span id="totalAccounts">0</span></p>
-            <img id="captchaImage" class="captcha-image">
-            <div>
-                <input type="text" id="captchaInput" placeholder="Enter captcha solution">
-                <button onclick="submitCaptcha()">Submit</button>
-            </div>
+    <div id="captchaOverlay" class="captcha-overlay" style="display: none;"></div>
+    <div id="captchaContainer" class="captcha-container" style="display: none;">
+        <h3 class="text-xl font-bold mb-4">Solve Captcha</h3>
+        <p class="text-gray-600 mb-4">Account <span id="currentAccount">0</span> of <span id="totalAccounts">0</span></p>
+        <img id="captchaImage" class="captcha-image">
+        <div class="flex gap-2">
+            <input type="text" id="captchaInput" 
+                   class="flex-1 shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                   placeholder="Enter captcha solution">
+            <button onclick="submitCaptcha()" 
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                Submit
+            </button>
         </div>
     </div>
+
+    <div id="toast" class="toast">Copied to clipboard!</div>
 
     <script>
         const socket = io();
@@ -113,7 +163,7 @@
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
         const status = document.getElementById('status');
-        const accountsTableBody = document.getElementById('accountsTableBody');
+        const accountsAccordion = document.getElementById('accountsAccordion');
         let currentCaptcha = null;
 
         startButton.addEventListener('click', () => {
@@ -125,46 +175,121 @@
             }
         });
 
-        function submitCaptcha() {
-            const solution = document.getElementById('captchaInput').value;
-            if (solution) {
-                socket.emit('captchaSolved', solution);
-                document.getElementById('captchaContainer').style.display = 'none';
-                document.getElementById('captchaInput').value = '';
-            }
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
-        socket.on('showCaptcha', (data) => {
-            document.getElementById('captchaContainer').style.display = 'block';
-            document.getElementById('captchaImage').src = data.captchaUrl;
-            document.getElementById('currentAccount').textContent = data.current;
-            document.getElementById('totalAccounts').textContent = data.total;
-        });
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                showToast('Failed to copy to clipboard');
+            });
+        }
+
+        function createAccordionItem(data) {
+            const item = document.createElement('div');
+            item.className = 'border rounded-lg overflow-hidden';
+            
+            const header = document.createElement('div');
+            header.className = 'accordion-header p-4 flex justify-between items-center bg-gray-50';
+            header.innerHTML = `
+                <div class="flex items-center gap-4">
+                    <span class="font-medium">${data.account.username || 'Pending...'}</span>
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        data.status === 'success' ? 'bg-green-100 text-green-800' : 
+                        data.status === 'failed' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                    }">${data.status}</span>
+                </div>
+                <div class="text-sm text-gray-500">${data.currentStep || '-'}</div>
+            `;
+
+            const content = document.createElement('div');
+            content.className = 'accordion-content p-4 bg-white';
+            content.innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Username</p>
+                        <p class="font-medium flex items-center gap-2">
+                            ${data.account.username || '-'}
+                            ${data.account.username ? `<button onclick="copyToClipboard('${data.account.username}')" class="copy-btn">Copy</button>` : ''}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Password</p>
+                        <p class="font-medium flex items-center gap-2">
+                            ${data.account.password || '-'}
+                            ${data.account.password ? `<button onclick="copyToClipboard('${data.account.password}')" class="copy-btn">Copy</button>` : ''}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Email</p>
+                        <p class="font-medium flex items-center gap-2">
+                            ${data.account.email || '-'}
+                            ${data.account.email ? `<button onclick="copyToClipboard('${data.account.email}')" class="copy-btn">Copy</button>` : ''}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Email Password</p>
+                        <p class="font-medium flex items-center gap-2">
+                            ${data.account.emailPassword || '-'}
+                            ${data.account.emailPassword ? `<button onclick="copyToClipboard('${data.account.emailPassword}')" class="copy-btn">Copy</button>` : ''}
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-gray-500">
+                    Created at: ${new Date().toLocaleTimeString()}
+                </div>
+            `;
+
+            header.addEventListener('click', () => {
+                content.classList.toggle('active');
+            });
+
+            item.appendChild(header);
+            item.appendChild(content);
+            return item;
+        }
 
         socket.on('creationProgress', (data) => {
             const progress = (data.current / data.total) * 100;
             progressBar.style.width = `${progress}%`;
             progressText.textContent = `${data.current}/${data.total}`;
             
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap">${data.account.username || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${data.account.password || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${data.account.email || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${data.account.emailPassword || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        data.status === 'success' ? 'bg-green-100 text-green-800' : 
-                        data.status === 'failed' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                    }">
-                        ${data.status}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">${data.currentStep || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${new Date().toLocaleTimeString()}</td>
-            `;
-            accountsTableBody.insertBefore(row, accountsTableBody.firstChild);
+            const accordionItem = createAccordionItem(data);
+            const accordion = document.getElementById('accountsAccordion');
+            accordion.insertBefore(accordionItem, accordion.firstChild);
+        });
+
+        socket.on('showCaptcha', (data) => {
+            document.getElementById('captchaOverlay').style.display = 'block';
+            document.getElementById('captchaContainer').style.display = 'block';
+            document.getElementById('captchaImage').src = data.captchaUrl;
+            document.getElementById('currentAccount').textContent = data.current;
+            document.getElementById('totalAccounts').textContent = data.total;
+            document.getElementById('captchaInput').focus();
+        });
+
+        function submitCaptcha() {
+            const solution = document.getElementById('captchaInput').value;
+            if (solution) {
+                socket.emit('captchaSolved', solution);
+                document.getElementById('captchaOverlay').style.display = 'none';
+                document.getElementById('captchaContainer').style.display = 'none';
+                document.getElementById('captchaInput').value = '';
+            }
+        }
+
+        // Add keyboard shortcut for captcha submission
+        document.getElementById('captchaInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitCaptcha();
+            }
         });
 
         socket.on('creationError', (data) => {

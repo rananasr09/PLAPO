@@ -7,14 +7,13 @@ A Node.js application for automating account creation on pornolab.net with real-
 - Automated account creation
 - Temporary email generation using mail.tm
 - Real-time progress tracking
-- Account history storage using Redis
+- Account history storage using SQLite
 - Modern web interface
 - Captcha solving integration
 
 ## Prerequisites
 
 - Node.js (v14 or higher)
-- Redis server
 - Captcha solving service API key (2captcha, Anti-Captcha, etc.)
 
 ## Setup
@@ -28,13 +27,10 @@ A Node.js application for automating account creation on pornolab.net with real-
 3. Create a `.env` file in the root directory with the following variables:
    ```
    PORT=3000
-   REDIS_URL=redis://localhost:6379
    CAPTCHA_API_KEY=your_captcha_service_api_key
    ```
 
-4. Start Redis server
-
-5. Build and run the application:
+4. Build and run the application:
    ```bash
    npm run build
    npm start
@@ -54,6 +50,7 @@ A Node.js application for automating account creation on pornolab.net with real-
 - `src/services/AccountCreator.ts` - Account creation logic
 - `src/services/MailTMService.ts` - Temporary email handling
 - `src/services/CaptchaService.ts` - Captcha solving integration
+- `src/services/DatabaseService.ts` - SQLite database operations
 - `public/index.html` - Web interface
 
 ## Notes

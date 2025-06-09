@@ -1,14 +1,14 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import Redis from 'ioredis';
 import { AccountCreator } from './services/AccountCreator';
+import { DatabaseService } from './services/DatabaseService';
 import routes from './routes';
 
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
-const redis = new Redis();
+const db = new DatabaseService();
 
 // Serve static files from the public directory
 app.use(express.static('public'));
@@ -22,7 +22,7 @@ io.on('connection', (socket) => {
 
     socket.on('startCreation', async (data: { count: number }) => {
         const { count } = data;
-        const accountCreator = new AccountCreator(redis, io);
+        const accountCreator = new AccountCreator(db, io);
 
         try {
             await accountCreator.startCreation(count, socket);
@@ -39,4 +39,10 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+});
+
+// Cleanup on server shutdown
+process.on('SIGINT', () => {
+    db.close();
+    process.exit(0);
 }); 

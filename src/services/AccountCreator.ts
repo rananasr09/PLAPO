@@ -1,8 +1,8 @@
-import { Redis } from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import axios from 'axios';
 import { MailTMService } from './MailTMService';
 import { CaptchaService } from './CaptchaService';
+import { DatabaseService, Account } from './DatabaseService';
 
 interface EmailCredentials {
   address: string;
@@ -14,7 +14,7 @@ export class AccountCreator {
   private captchaService: CaptchaService;
 
   constructor(
-    private redisClient: Redis,
+    private db: DatabaseService,
     private io: Server
   ) {
     this.mailTMService = new MailTMService();
@@ -167,31 +167,29 @@ export class AccountCreator {
               validateStatus: (status) => status < 400
             });
 
-  
-
-            // Store account in Redis
-            const accountData = {
+            // Store account in database
+            const accountData: Account = {
               username,
               password,
               email: email.address,
               emailPassword: email.password,
-              status:  'success',
+              status: 'success',
               timestamp: new Date().toISOString()
             };
-            await this.storeAccount(accountData);
+            await this.db.storeAccount(accountData);
 
             // Emit progress update
             socket.emit('creationProgress', {
               current: i + 1,
               total: count,
-              status:  'success',
+              status: 'success',
               currentStep: 'Account activated',
               account: accountData
             });
 
           } catch (error) {
             console.error('Error during activation:', error);
-            const accountData = {
+            const accountData: Account = {
               username,
               password,
               email: email.address,
@@ -199,7 +197,7 @@ export class AccountCreator {
               status: 'failed',
               timestamp: new Date().toISOString()
             };
-            await this.storeAccount(accountData);
+            await this.db.storeAccount(accountData);
 
             socket.emit('creationProgress', {
               current: i + 1,
@@ -210,8 +208,8 @@ export class AccountCreator {
             });
           }
         } else {
-          // Store failed account in Redis
-          const accountData = {
+          // Store failed account in database
+          const accountData: Account = {
             username,
             password,
             email: email.address,
@@ -219,7 +217,7 @@ export class AccountCreator {
             status: 'failed',
             timestamp: new Date().toISOString()
           };
-          await this.storeAccount(accountData);
+          await this.db.storeAccount(accountData);
 
           // Emit progress update
           socket.emit('creationProgress', {
@@ -240,6 +238,15 @@ export class AccountCreator {
         });
       }
     }
+  }
+
+  private generateRandomString(length: number): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
   }
 
   private async getRegistrationFormData(): Promise<{
@@ -273,11 +280,8 @@ export class AccountCreator {
         }
       });
 
-
       const captchaUrlMatch = response.data.match(/<img[^>]+src="([^"]+captcha[^"]+)"/);
-      
       const captchaSidMatch = response.data.match(/name="cap_sid" value="([^"]+)"/);
-      
       const captchaCodeNameMatch = response.data.match(/name="cap_code_([^"]+)"/);
 
       if (!captchaUrlMatch || !captchaSidMatch || !captchaCodeNameMatch) {
@@ -348,7 +352,6 @@ export class AccountCreator {
         validateStatus: (status) => status < 400
       });
 
-      
       // Check if registration was successful
       const success = !response.data.includes('error') && 
                      !response.data.includes('captcha') &&
@@ -359,14 +362,5 @@ export class AccountCreator {
       console.error('Error submitting registration:', error);
       return { success: false };
     }
-  }
-
-  private async storeAccount(account: any) {
-    await this.redisClient.lpush('created_accounts', JSON.stringify(account));
-  }
-
-  private generateRandomString(length: number): string {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
   }
 } 
