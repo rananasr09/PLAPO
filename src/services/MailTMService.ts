@@ -16,7 +16,9 @@ export class MailTMService {
       console.log('Creating temporary email account...');
       // First get available domains
       const domainsResponse = await axios.get(`${this.baseUrl}/domains`);
-      const domain = domainsResponse.data['hydra:member'][0].domain;
+      //Chhose random domain
+      const randomIndex = Math.floor(Math.random() * domainsResponse.data['hydra:member'].length);
+      const domain = domainsResponse.data['hydra:member'][randomIndex].domain;
       console.log('Selected domain:', domain);
 
       // Generate random username and password
