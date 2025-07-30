@@ -6,8 +6,7 @@ interface EmailCredentials {
 }
 
 export class MailTMService {
-  private readonly baseUrl = 'https://api.mail.tm';
-  private readonly domain = 'mail.tm';
+  private readonly baseUrl = 'https://api.mail.gw';
   private account: any = null;
   private token: string | null = null;
 
@@ -27,7 +26,7 @@ export class MailTMService {
       console.log('Generated credentials:', { username, password });
 
       // Create account
-      console.log('Creating account on mail.tm...');
+      console.log('Creating account on mail.gw...');
       await axios.post(`${this.baseUrl}/accounts`, {
         address: `${username}@${domain}`,
         password: password
