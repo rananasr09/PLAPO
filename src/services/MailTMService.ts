@@ -6,7 +6,7 @@ interface EmailCredentials {
 }
 
 export class MailTMService {
-  private readonly baseUrl = 'https://api.mail.gw';
+  private readonly baseUrl = 'https://api.mail.tm';
   private account: any = null;
   private token: string | null = null;
 
