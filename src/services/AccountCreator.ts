@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import axios from 'axios';
-import { MailTMService } from './MailTMService';
+import { ProtonMailService } from './ProtonMailService';
 import { CaptchaService } from './CaptchaService';
 import { DatabaseService, Account } from './DatabaseService';
 
@@ -10,18 +10,28 @@ interface EmailCredentials {
 }
 
 export class AccountCreator {
-  private mailTMService: MailTMService;
+  private mailService: ProtonMailService;
   private captchaService: CaptchaService;
 
   constructor(
     private db: DatabaseService,
     private io: Server
   ) {
-    this.mailTMService = new MailTMService();
+    this.mailService = new ProtonMailService(db);
     this.captchaService = new CaptchaService();
   }
 
   async startCreation(count: number, socket: Socket) {
+    const available = this.mailService.getAvailableCount();
+    if (count > available) {
+      socket.emit('creationError', {
+        current: 0,
+        total: count,
+        error: `Not enough email variants available. Requested: ${count}, Available: ${available}/256`
+      });
+      return;
+    }
+
     for (let i = 0; i < count; i++) {
       try {
         // Generate random username and password
@@ -43,7 +53,7 @@ export class AccountCreator {
         });
 
         // Create temporary email
-        const email = await this.mailTMService.createTemporaryEmail();
+        const email = await this.mailService.createTemporaryEmail();
         
         // Emit progress update - Email created
         socket.emit('creationProgress', {
@@ -140,7 +150,7 @@ export class AccountCreator {
           });
 
           try {
-            const activationLink = await this.mailTMService.waitForVerificationEmail();
+            const activationLink = await this.mailService.waitForVerificationEmail();
             
             socket.emit('creationProgress', {
               current: i + 1,

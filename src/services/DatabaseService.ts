@@ -72,6 +72,13 @@ export class DatabaseService {
     return result || null;
   }
 
+  getUsedProtonEmails(domain: string): string[] {
+    const stmt = this.db.prepare(`
+      SELECT email FROM accounts WHERE email LIKE ? AND status = 'success'
+    `);
+    return stmt.all(`%@${domain}`).map((row: any) => row.email);
+  }
+
   close() {
     this.db.close();
   }

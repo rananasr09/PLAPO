@@ -234,13 +234,13 @@
                             ${data.account.email ? `<button onclick="copyToClipboard('${data.account.email}')" class="copy-btn">Copy</button>` : ''}
                         </p>
                     </div>
-                    <div>
+                    ${data.account.emailPassword && data.account.emailPassword !== 'N/A' ? `<div>
                         <p class="text-sm text-gray-600">Email Password</p>
                         <p class="font-medium flex items-center gap-2">
-                            ${data.account.emailPassword || '-'}
-                            ${data.account.emailPassword ? `<button onclick="copyToClipboard('${data.account.emailPassword}')" class="copy-btn">Copy</button>` : ''}
+                            ${data.account.emailPassword}
+                            <button onclick="copyToClipboard('${data.account.emailPassword}')" class="copy-btn">Copy</button>
                         </p>
-                    </div>
+                    </div>` : ''}
                 </div>
                 <div class="mt-4 text-sm text-gray-500">
                     Created at: ${new Date().toLocaleTimeString()}
